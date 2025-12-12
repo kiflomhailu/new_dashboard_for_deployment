@@ -106,20 +106,34 @@ def load_models_and_data():
         optimal_threshold = float(f.read().strip())
     print(f"✓ Optimal threshold loaded: {optimal_threshold:.6f}")
     
-    # Load operational data
-    df = pd.read_csv(data_path, low_memory=False)
-    print(f"✓ Loaded {len(df):,} records")
+    # Load operational data (optional - for dashboard display)
+    try:
+        df = pd.read_csv(data_path, low_memory=False)
+        print(f"✓ Loaded {len(df):,} records")
+    except FileNotFoundError:
+        print("⚠️  CSV data file not found - running in prediction-only mode")
+        # Create empty dataframe with required structure
+        df = pd.DataFrame()
     
     # ==========================================
-    # PREPROCESSING
+    # PREPROCESSING (only if data loaded)
     # ==========================================
     
-    # Replace sentinel values
-    sentinel_cols = ['pgv_max', 'magnitude', 'hourly_seismicity_rate']
-    for col in sentinel_cols:
-        if col in df.columns:
-            mask = df[col] == -999.0
-            df.loc[mask, col] = 0
+    if len(df) == 0:
+        # No data file - models loaded but no dashboard data
+        print("✓ Models loaded successfully (prediction-only mode)")
+        df_dashboard = pd.DataFrame()
+        models_loaded = True
+        return model_event, model_magnitude, model_traffic, train_medians, optimal_threshold
+    
+    # Process data if available
+    if len(df) > 0:
+        # Replace sentinel values
+        sentinel_cols = ['pgv_max', 'magnitude', 'hourly_seismicity_rate']
+        for col in sentinel_cols:
+            if col in df.columns:
+                mask = df[col] == -999.0
+                df.loc[mask, col] = 0
     
     # Parse datetime
     datetime_cols = ['recorded_at', 'phase_started_at', 'phase_production_ended_at',
